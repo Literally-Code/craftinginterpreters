@@ -15,6 +15,10 @@ public class GenerateAst {
     String outputDir = args[0];
 //> call-define-ast
     defineAst(outputDir, "Expr", Arrays.asList(
+
+// Homework Chapter 6
+      "Conditional   : Expr condition, Expr then, Expr other",
+
 //> Statements and State assign-expr
       "Assign   : Token name, Expr value",
 //< Statements and State assign-expr

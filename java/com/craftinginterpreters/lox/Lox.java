@@ -53,13 +53,43 @@ public class Lox {
       System.out.print("> ");
       String line = reader.readLine();
       if (line == null) break;
-      run(line);
+      runRepl(line);
 //> reset-had-error
       hadError = false;
 //< reset-had-error
     }
   }
 //< prompt
+
+// Homework Chapter 8
+// Add a new run function that runs using the parser as REPL
+
+
+private static void runRepl(String source) {
+    Scanner scanner = new Scanner(source);
+    List<Token> tokens = scanner.scanTokens();
+
+    Parser parser = new Parser(tokens);
+
+	// Parse tokens as either a single Expr or List<Stmt>
+	Object parsed = parser.parseRepl();
+
+	// If parsed syntax is a list, interpret it normally
+	if (parsed instanceof List)
+	{
+		interpreter.interpret((List<Stmt>)parsed);
+	}
+	// Otherwise, interpret it and print the result
+	else
+	{
+		String output = interpreter.interpret((Expr)parsed);
+		if (output != null)
+			System.out.println(output);
+	}
+  }
+
+
+
 //> run
   private static void run(String source) {
     Scanner scanner = new Scanner(source);

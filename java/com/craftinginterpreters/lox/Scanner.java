@@ -93,6 +93,15 @@ class Scanner {
         }
         break;
 //< slash
+
+//< Homework Chapter 6
+		case '?':
+			addToken(QUESTION);
+			break;
+		case ':':
+			addToken(COLON);
+			break;
+
 //> whitespace
 
       case ' ':

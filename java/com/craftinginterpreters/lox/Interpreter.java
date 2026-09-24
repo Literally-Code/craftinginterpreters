@@ -33,6 +33,9 @@ class Interpreter implements Expr.Visitor<Object>,
 //< Resolving and Binding locals-field
 //> Statements and State environment-field
 
+// Homework Chapter 8
+	private static Object uninitialized = new Object();
+
 //< Statements and State environment-field
 //> Functions interpreter-constructor
   Interpreter() {
@@ -62,6 +65,23 @@ class Interpreter implements Expr.Visitor<Object>,
     }
   }
 */
+
+// Homework Chapter 8
+// Interpret a single expression and return the result as a string to print
+String interpret(Expr expression)
+{
+	try 
+	{
+		Object result = evaluate(expression);
+		return stringify(result);
+	}
+	catch (RuntimeError error)
+	{
+		Lox.runtimeError(error);
+		return null;
+	}
+}
+
 //> Statements and State interpret
   void interpret(List<Stmt> statements) {
     try {
@@ -221,9 +241,10 @@ class Interpreter implements Expr.Visitor<Object>,
   }
 //< Functions visit-return
 //> Statements and State visit-var
+  // Homework Chapter 8
   @Override
   public Void visitVarStmt(Stmt.Var stmt) {
-    Object value = null;
+    Object value = uninitialized;
     if (stmt.initializer != null) {
       value = evaluate(stmt.initializer);
     }
@@ -309,6 +330,16 @@ class Interpreter implements Expr.Visitor<Object>,
           return (String)left + (String)right;
         }
 
+		if (left instanceof String && !(right instanceof String))
+		{
+			return (String)left + String.valueOf(right);
+		}
+
+		if (!(left instanceof String) && right instanceof String)
+		{
+			return String.valueOf(left) + (String)right;
+		}
+
 /* Evaluating Expressions binary-plus < Evaluating Expressions string-wrong-type
         break;
 */
@@ -321,13 +352,21 @@ class Interpreter implements Expr.Visitor<Object>,
 //> check-slash-operand
         checkNumberOperands(expr.operator, left, right);
 //< check-slash-operand
+
+//> check-divide-zero
+		if ((double)right == 0)
+			throw new RuntimeError(expr.operator, "Divide by zero error");
+//< check-divide-zero
         return (double)left / (double)right;
       case STAR:
 //> check-star-operand
         checkNumberOperands(expr.operator, left, right);
 //< check-star-operand
         return (double)left * (double)right;
-    }
+//< Homework Chapter 6
+		case COMMA:
+			return right;
+	}
 
     // Unreachable.
     return null;
@@ -469,15 +508,40 @@ class Interpreter implements Expr.Visitor<Object>,
   }
 //< visit-unary
 //> Statements and State visit-variable
+  
+// Homework Chapter 8
+// Changed method to check if variable is uninitialized, throwing a RuntimeError if so
   @Override
   public Object visitVariableExpr(Expr.Variable expr) {
 /* Statements and State visit-variable < Resolving and Binding call-look-up-variable
     return environment.get(expr.name);
 */
 //> Resolving and Binding call-look-up-variable
-    return lookUpVariable(expr.name, expr);
+    
+	Object value = lookUpVariable(expr.name, expr);
+
+	if (value == uninitialized)
+	{
+		throw new RuntimeError(expr.name, "Uninitialized variable cannot be used.");
+	}
+
+	return value;
+
 //< Resolving and Binding call-look-up-variable
   }
+
+// Homework Chapter 6
+//> Statements and State visit-conditional
+  @Override
+  public Object visitConditionalExpr(Expr.Conditional expr) {
+    if (isTruthy(evaluate(expr.condition)))
+	{
+		return evaluate(expr.then);
+	}
+	return evaluate(expr.other);
+  }
+//< Statements and State visit-conditional
+
 //> Resolving and Binding look-up-variable
   private Object lookUpVariable(Token name, Expr expr) {
     Integer distance = locals.get(expr);

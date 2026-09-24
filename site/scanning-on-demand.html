@@ -761,7 +761,78 @@ we know the very next character is a meaningful one (or we&rsquo;re at the end o
 source code).</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
 add after <em>errorToken</em>()</div>
-<pre><span class="k">static</span> <span class="t">void</span> <span class="i">skipWhitespace</span>() {
+<pre><span class="k">static</span> <span class="t">void</span> <span class="i">skipWhitespace</span>()
+{
+    <span class="t">int</span> <span class="i">nest_depth</span> = <span class="n">0</span>;
+    <span class="k">for</span> (;;)
+    {
+        <span class="t">char</span> <span class="i">c</span> = <span class="i">peek</span>();
+        <span class="k">switch</span> (<span class="i">c</span>)
+        {
+        <span class="k">case</span> <span class="s">&#39; &#39;</span>:
+        <span class="k">case</span> <span class="s">&#39;\r&#39;</span>:
+        <span class="k">case</span> <span class="s">&#39;\t&#39;</span>:
+            <span class="i">advance</span>();
+            <span class="k">break</span>;
+            <span class="c">//&gt; newline</span>
+        <span class="k">case</span> <span class="s">&#39;\n&#39;</span>:
+            <span class="i">scanner</span>.<span class="i">line</span>++;
+            <span class="i">advance</span>();
+            <span class="k">break</span>;
+            <span class="c">//&lt; newline</span>
+            <span class="c">//&gt; comment</span>
+        <span class="k">case</span> <span class="s">&#39;/&#39;</span>:
+            <span class="k">if</span> (<span class="i">peekNext</span>() == <span class="s">&#39;/&#39;</span>)
+            {
+                <span class="c">// A comment goes until the end of the line.</span>
+                <span class="k">while</span> (<span class="i">peek</span>() != <span class="s">&#39;\n&#39;</span> &amp;&amp; !<span class="i">isAtEnd</span>())
+                    <span class="i">advance</span>();
+            }
+            <span class="k">else</span> <span class="k">if</span> (<span class="i">peekNext</span>() == <span class="s">&#39;*&#39;</span>)
+            {
+                <span class="i">advance</span>();
+                <span class="i">advance</span>();
+
+                <span class="k">while</span> (<span class="i">nest_depth</span> &gt; <span class="n">0</span> &amp;&amp; !<span class="i">isAtEnd</span>())
+                {
+                    <span class="k">if</span> (<span class="i">peek</span>() == <span class="s">&#39;/&#39;</span> &amp;&amp; <span class="i">peekNext</span>() == <span class="s">&#39;*&#39;</span>)
+                    {
+                        <span class="i">advance</span>();
+                        <span class="i">advance</span>();
+                        <span class="i">nest_depth</span>++;
+                    }
+                    <span class="k">else</span> <span class="k">if</span> (<span class="i">peek</span>() == <span class="s">&#39;*&#39;</span> &amp;&amp; <span class="i">peekNext</span>() == <span class="s">&#39;/&#39;</span>)
+                    {
+                        <span class="i">advance</span>();
+                        <span class="i">advance</span>();
+                        <span class="i">nest_depth</span>--;
+                    }
+                    <span class="k">else</span>
+                    {
+                        <span class="k">if</span> (<span class="i">peek</span>() == <span class="s">&#39;\n&#39;</span>)
+                        {
+                            <span class="i">scanner</span>.<span class="i">line</span>++;
+                        }
+
+                        <span class="i">advance</span>();
+                    }
+                }
+
+                <span class="k">break</span>;
+            }
+            <span class="k">else</span>
+            {
+                <span class="k">return</span>;
+            }
+            <span class="k">break</span>;
+            <span class="c">//&lt; comment</span>
+        <span class="k">default</span>:
+            <span class="k">return</span>;
+        }
+    }
+}
+/*
+<span class="k">static</span> <span class="t">void</span> <span class="i">old_skipWhitespace</span>() {
   <span class="k">for</span> (;;) {
     <span class="t">char</span> <span class="i">c</span> = <span class="i">peek</span>();
     <span class="k">switch</span> (<span class="i">c</span>) {
@@ -775,6 +846,7 @@ add after <em>errorToken</em>()</div>
     }
   }
 }
+*/
 </pre></div>
 <div class="source-file-narrow"><em>scanner.c</em>, add after <em>errorToken</em>()</div>
 
@@ -793,7 +865,7 @@ add after <em>advance</em>()</div>
 code handles all the whitespace characters except for newlines.</p>
 <div class="codehilite"><pre class="insert-before">        break;
 </pre><div class="source-file"><em>scanner.c</em><br>
-in <em>skipWhitespace</em>()</div>
+in <em>old_skipWhitespace</em>()</div>
 <pre class="insert">      <span class="k">case</span> <span class="s">&#39;\n&#39;</span>:
         <span class="i">scanner</span>.<span class="i">line</span>++;
         <span class="i">advance</span>();
@@ -801,7 +873,7 @@ in <em>skipWhitespace</em>()</div>
 </pre><pre class="insert-after">      default:
         return;
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, in <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, in <em>old_skipWhitespace</em>()</div>
 
 <p>When we consume one of those, we also bump the current line number.</p>
 <h3><a href="#comments" id="comments"><small>16&#8202;.&#8202;3&#8202;.&#8202;2</small>Comments</a></h3>
@@ -810,7 +882,7 @@ your terminology, but as far as Lox is concerned, they may as well be, so we
 skip those too.</p>
 <div class="codehilite"><pre class="insert-before">        break;
 </pre><div class="source-file"><em>scanner.c</em><br>
-in <em>skipWhitespace</em>()</div>
+in <em>old_skipWhitespace</em>()</div>
 <pre class="insert">      <span class="k">case</span> <span class="s">&#39;/&#39;</span>:
         <span class="k">if</span> (<span class="i">peekNext</span>() == <span class="s">&#39;/&#39;</span>) {
           <span class="c">// A comment goes until the end of the line.</span>
@@ -822,7 +894,7 @@ in <em>skipWhitespace</em>()</div>
 </pre><pre class="insert-after">      default:
         return;
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, in <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, in <em>old_skipWhitespace</em>()</div>
 
 <p>Comments start with <code>//</code> in Lox, so as with <code>!=</code> and friends, we need a second
 character of lookahead. However, with <code>!=</code>, we still wanted to consume the <code>!</code>
@@ -858,7 +930,7 @@ in <em>scanToken</em>()</div>
 
 <p>That calls a new function.</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
-add after <em>skipWhitespace</em>()</div>
+add after <em>old_skipWhitespace</em>()</div>
 <pre><span class="k">static</span> <span class="t">Token</span> <span class="i">string</span>() {
   <span class="k">while</span> (<span class="i">peek</span>() != <span class="s">&#39;&quot;&#39;</span> &amp;&amp; !<span class="i">isAtEnd</span>()) {
     <span class="k">if</span> (<span class="i">peek</span>() == <span class="s">&#39;\n&#39;</span>) <span class="i">scanner</span>.<span class="i">line</span>++;
@@ -872,7 +944,7 @@ add after <em>skipWhitespace</em>()</div>
   <span class="k">return</span> <span class="i">makeToken</span>(<span class="a">TOKEN_STRING</span>);
 }
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, add after <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, add after <em>old_skipWhitespace</em>()</div>
 
 <p>Similar to jlox, we consume characters until we reach the closing quote. We also
 track newlines inside the string literal. (Lox supports multi-line strings.)
@@ -921,7 +993,7 @@ add after <em>initScanner</em>()</div>
 
 <p>We finish scanning the number using this:</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
-add after <em>skipWhitespace</em>()</div>
+add after <em>old_skipWhitespace</em>()</div>
 <pre><span class="k">static</span> <span class="t">Token</span> <span class="i">number</span>() {
   <span class="k">while</span> (<span class="i">isDigit</span>(<span class="i">peek</span>())) <span class="i">advance</span>();
 
@@ -936,7 +1008,7 @@ add after <em>skipWhitespace</em>()</div>
   <span class="k">return</span> <span class="i">makeToken</span>(<span class="a">TOKEN_NUMBER</span>);
 }
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, add after <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, add after <em>old_skipWhitespace</em>()</div>
 
 <p>It&rsquo;s virtually identical to jlox&rsquo;s version except, again, we don&rsquo;t convert the
 lexeme to a double yet.</p>
@@ -968,24 +1040,24 @@ add after <em>initScanner</em>()</div>
 
 <p>Once we&rsquo;ve found an identifier, we scan the rest of it here:</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
-add after <em>skipWhitespace</em>()</div>
+add after <em>old_skipWhitespace</em>()</div>
 <pre><span class="k">static</span> <span class="t">Token</span> <span class="i">identifier</span>() {
   <span class="k">while</span> (<span class="i">isAlpha</span>(<span class="i">peek</span>()) || <span class="i">isDigit</span>(<span class="i">peek</span>())) <span class="i">advance</span>();
   <span class="k">return</span> <span class="i">makeToken</span>(<span class="i">identifierType</span>());
 }
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, add after <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, add after <em>old_skipWhitespace</em>()</div>
 
 <p>After the first letter, we allow digits too, and we keep consuming alphanumerics
 until we run out of them. Then we produce a token with the proper type.
 Determining that &ldquo;proper&rdquo; type is the unique part of this chapter.</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
-add after <em>skipWhitespace</em>()</div>
+add after <em>old_skipWhitespace</em>()</div>
 <pre><span class="k">static</span> <span class="t">TokenType</span> <span class="i">identifierType</span>() {
   <span class="k">return</span> <span class="a">TOKEN_IDENTIFIER</span>;
 }
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, add after <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, add after <em>old_skipWhitespace</em>()</div>
 
 <p>Okay, I guess that&rsquo;s not very exciting yet. That&rsquo;s what it looks like if we
 have no reserved words at all. How should we go about recognizing keywords? In
@@ -1122,7 +1194,7 @@ diagram, this is basically that straight path hanging off the &ldquo;s&rdquo;.</
 <p>We won&rsquo;t roll a switch for each of those nodes. Instead, we have a utility
 function that tests the rest of a potential keyword&rsquo;s lexeme.</p>
 <div class="codehilite"><div class="source-file"><em>scanner.c</em><br>
-add after <em>skipWhitespace</em>()</div>
+add after <em>old_skipWhitespace</em>()</div>
 <pre><span class="k">static</span> <span class="t">TokenType</span> <span class="i">checkKeyword</span>(<span class="t">int</span> <span class="i">start</span>, <span class="t">int</span> <span class="i">length</span>,
     <span class="k">const</span> <span class="t">char</span>* <span class="i">rest</span>, <span class="t">TokenType</span> <span class="i">type</span>) {
   <span class="k">if</span> (<span class="i">scanner</span>.<span class="i">current</span> - <span class="i">scanner</span>.<span class="i">start</span> == <span class="i">start</span> + <span class="i">length</span> &amp;&amp;
@@ -1133,7 +1205,7 @@ add after <em>skipWhitespace</em>()</div>
   <span class="k">return</span> <span class="a">TOKEN_IDENTIFIER</span>;
 }
 </pre></div>
-<div class="source-file-narrow"><em>scanner.c</em>, add after <em>skipWhitespace</em>()</div>
+<div class="source-file-narrow"><em>scanner.c</em>, add after <em>old_skipWhitespace</em>()</div>
 
 <p>We use this for all of the unbranching paths in the tree. Once we&rsquo;ve found a
 prefix that could only be one possible reserved word, we need to verify two

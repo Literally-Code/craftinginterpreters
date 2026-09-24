@@ -82,7 +82,82 @@ static Token errorToken(const char* message) {
 }
 //< error-token
 //> skip-whitespace
-static void skipWhitespace() {
+static void skipWhitespace()
+{
+    for (;;)
+    {
+        char c = peek();
+        switch (c)
+        {
+        case ' ':
+        case '\r':
+        case '\t':
+            advance();
+            break;
+            //> newline
+        case '\n':
+            scanner.line++;
+            advance();
+            break;
+            //< newline
+			//> comment
+		case '/':
+			if (peekNext() == '/')
+			{
+				// A comment goes until the end of the line.
+				while (peek() != '\n' && !isAtEnd())
+					advance();
+			}
+			else if (peekNext() == '*')
+			{
+				// Consume the opening /*
+				advance(); // /
+				advance(); // *
+
+				int nest_depth = 1;
+
+				while (nest_depth > 0 && !isAtEnd())
+				{
+					if (peek() == '/' && peekNext() == '*')
+					{
+						// Consume /*
+						advance();
+						advance();
+						nest_depth++;
+					}
+					else if (peek() == '*' && peekNext() == '/')
+					{
+						// Consume */
+						advance();
+						advance();
+						nest_depth--;
+					}
+					else
+					{
+						if (peek() == '\n')
+						{
+							scanner.line++;
+						}
+
+						advance();
+					}
+				}
+
+				break;
+			}
+			else
+			{
+				return;
+			}
+			break;
+			//< comment
+		default:
+			return;
+		}
+    }
+}
+/*
+static void old_skipWhitespace() {
   for (;;) {
     char c = peek();
     switch (c) {
@@ -112,6 +187,7 @@ static void skipWhitespace() {
     }
   }
 }
+*/
 //< skip-whitespace
 //> check-keyword
 static TokenType checkKeyword(int start, int length,

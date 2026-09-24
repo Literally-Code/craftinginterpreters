@@ -19,6 +19,10 @@ class Parser {
   private final List<Token> tokens;
   private int current = 0;
 
+// Homework Chapter 8
+	private boolean isRepl = false;
+	private boolean execExpression = false;
+
   Parser(List<Token> tokens) {
     this.tokens = tokens;
   }
@@ -31,20 +35,47 @@ class Parser {
     }
   }
 */
+
 //> Statements and State parse
   List<Stmt> parse() {
     List<Stmt> statements = new ArrayList<>();
-    while (!isAtEnd()) {
-/* Statements and State parse < Statements and State parse-declaration
-      statements.add(statement());
-*/
-//> parse-declaration
-      statements.add(declaration());
-//< parse-declaration
-    }
+    
+	while (!isAtEnd()) {
+		statements.add(declaration());
+	}
 
     return statements; // [parse-error-handling]
   }
+
+// Homework Chapter 8
+// Added separate parseRepl method to return Object: either List<Stmt> or Expr
+  Object parseRepl()
+  {
+  	isRepl = true;
+	List<Stmt> statements = new ArrayList<>();
+    while (!isAtEnd()) {
+		statements.add(declaration());
+
+/* Statements and State parse < Statements and State parse-declaration
+      statements.add(statement());
+*/		// Chapter 8: Changed parse function to run statement as expression
+		if (execExpression)
+		{
+			Stmt expression = statements.get(statements.size() - 1);
+			return ((Stmt.Expression)expression).expression;
+		}
+	}
+
+    return statements; 
+  }
+
+// Homework Chapter 8
+// Mutator for isRepl
+	void setIsRepl(boolean value)
+	{
+		isRepl = value;
+	}
+
 //< Statements and State parse
 //> expression
   private Expr expression() {
@@ -52,7 +83,8 @@ class Parser {
     return equality();
 */
 //> Statements and State expression
-    return assignment();
+    // Homework Chapter 6 (assignment -> comma to update precedence)
+	return comma();
 //< Statements and State expression
   }
 //< expression
@@ -245,8 +277,15 @@ class Parser {
 //> Statements and State parse-expression-statement
   private Stmt expressionStatement() {
     Expr expr = expression();
-    consume(SEMICOLON, "Expect ';' after expression.");
-    return new Stmt.Expression(expr);
+    if (isRepl && isAtEnd())
+	{
+		execExpression = true;
+	}
+	else
+	{
+		consume(SEMICOLON, "Expect ';' after expression.");
+    }
+	return new Stmt.Expression(expr);
   }
 //< Statements and State parse-expression-statement
 //> Functions parse-function
@@ -271,7 +310,7 @@ class Parser {
 
     consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
     List<Stmt> body = block();
-    return new Stmt.Function(name, parameters, body);
+	return new Stmt.Function(name, parameters, body);
 //< parse-body
   }
 //< Functions parse-function
@@ -287,13 +326,50 @@ class Parser {
     return statements;
   }
 //< Statements and State block
+
+// Homework Chapter 6
+//> Statements and State parse-comma
+  private Expr comma() {
+//> Control Flow assignment-in-comma
+    Expr expr = assignment();
+//< Control Flow assignment-in-comma
+
+    while (match(COMMA)) {
+      Token operator = previous();
+      Expr right = assignment();
+      expr = new Expr.Binary(expr, operator, right);
+    }
+
+    return expr;
+  }
+
+// Homework Chapter 6
+//> Statements and State parse-conditional
+  private Expr conditional() {
+//> Control Flow or-in-conditional
+    Expr expr = or();
+//< Control Flow or-in-conditional
+
+	if (match(QUESTION)) {
+		Expr thenBranch = expression();
+		consume(COLON, "Expect ':' after expression.");
+		Expr elseBranch = conditional();
+
+		expr = new Expr.Conditional(expr, thenBranch, elseBranch);
+	}
+
+	return expr;
+  }
+//< Statements and State parse-conditional
+
 //> Statements and State parse-assignment
   private Expr assignment() {
 /* Statements and State parse-assignment < Control Flow or-in-assignment
     Expr expr = equality();
 */
+// Homework Chapter 6 (changed from or to conditional)
 //> Control Flow or-in-assignment
-    Expr expr = or();
+    Expr expr = conditional();
 //< Control Flow or-in-assignment
 
     if (match(EQUAL)) {
@@ -420,7 +496,7 @@ class Parser {
           error(peek(), "Can't have more than 255 arguments.");
         }
 //< check-max-arity
-        arguments.add(expression());
+        arguments.add(assignment());
       } while (match(COMMA));
     }
 
@@ -486,6 +562,32 @@ class Parser {
       consume(RIGHT_PAREN, "Expect ')' after expression.");
       return new Expr.Grouping(expr);
     }
+
+// Homework Chapter 6 error productions
+ if (match(BANG_EQUAL, EQUAL_EQUAL)) {
+    Token operator = previous();
+    equality();
+    throw error(operator, "Missing left-hand operand.");
+  }
+
+  if (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
+    Token operator = previous();
+    comparison();
+    throw error(operator, "Missing left-hand operand.");
+  }
+
+  if (match(PLUS)) {
+    Token operator = previous();
+    term();
+    throw error(operator, "Missing left-hand operand.");
+  }
+
+  if (match(SLASH, STAR)) {
+    Token operator = previous();
+    factor();
+    throw error(operator, "Missing left-hand operand.");
+  }
+
 //> primary-error
 
     throw error(peek(), "Expect expression.");
