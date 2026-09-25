@@ -36,6 +36,9 @@ class Interpreter implements Expr.Visitor<Object>,
 // Homework Chapter 8
 	private static Object uninitialized = new Object();
 
+// Homework Chapter 9
+	private static class BreakException extends RuntimeException {}	
+
 //< Statements and State environment-field
 //> Functions interpreter-constructor
   Interpreter() {
@@ -122,6 +125,14 @@ String interpret(Expr expression)
       this.environment = previous;
     }
   }
+
+	// Homework Chapter 9
+	@Override
+	public Void visitBreakStmt(Stmt.Break statement)
+	{
+		throw new BreakException();
+	}
+
 //< Statements and State execute-block
 //> Statements and State visit-block
   @Override
@@ -254,11 +265,17 @@ String interpret(Expr expression)
   }
 //< Statements and State visit-var
 //> Control Flow visit-while
+// Homework Chapter 9
   @Override
   public Void visitWhileStmt(Stmt.While stmt) {
-    while (isTruthy(evaluate(stmt.condition))) {
-      execute(stmt.body);
-    }
+    try 
+	{
+		while (isTruthy(evaluate(stmt.condition))) {
+      		execute(stmt.body);
+    	}
+	}
+	catch (BreakException e)
+	{}
     return null;
   }
 //< Control Flow visit-while

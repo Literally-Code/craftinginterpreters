@@ -56,6 +56,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
   }
 //< resolve-statements
+
+// Homework Chapter 9
+// Do nothing for the break statement, the control is already done in the interpreter
+	public Void visitBreakStmt(Stmt.Break stmt) {
+		return null;
+	}
+
 //> visit-block-stmt
   @Override
   public Void visitBlockStmt(Stmt.Block stmt) {

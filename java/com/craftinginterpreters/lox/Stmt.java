@@ -5,6 +5,7 @@ import java.util.List;
 
 abstract class Stmt {
   interface Visitor<R> {
+    R visitBreakStmt(Break stmt);
     R visitBlockStmt(Block stmt);
     R visitClassStmt(Class stmt);
     R visitExpressionStmt(Expression stmt);
@@ -17,6 +18,18 @@ abstract class Stmt {
   }
 
   // Nested Stmt classes here...
+//> stmt-break
+  static class Break extends Stmt {
+    Break() {
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitBreakStmt(this);
+    }
+
+  }
+//< stmt-break
 //> stmt-block
   static class Block extends Stmt {
     Block(List<Stmt> statements) {

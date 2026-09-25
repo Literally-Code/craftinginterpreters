@@ -23,6 +23,9 @@ class Parser {
 	private boolean isRepl = false;
 	private boolean execExpression = false;
 
+// Homework Chapter 9
+	private int loopDepth = 0;
+
   Parser(List<Token> tokens) {
     this.tokens = tokens;
   }
@@ -153,9 +156,24 @@ class Parser {
 //> parse-block
     if (match(LEFT_BRACE)) return new Stmt.Block(block());
 //< parse-block
+	
+// Homework Chapter 9
+	if (match(BREAK)) return breakStatement();
 
     return expressionStatement();
   }
+
+// Homework Chapter 9
+	private Stmt breakStatement()
+	{
+		if (loopDepth == 0)
+		{
+			error(previous(), "Cannot use break statement outside of a loop.");
+		}
+		consume(SEMICOLON, "Expect ';' after 'break'.");
+		return new Stmt.Break();
+	}
+
 //< Statements and State parse-statement
 //> Control Flow for-statement
   private Stmt forStatement() {
@@ -190,30 +208,39 @@ class Parser {
     }
     consume(RIGHT_PAREN, "Expect ')' after for clauses.");
 //< for-increment
-//> for-body
-    Stmt body = statement();
 
-//> for-desugar-increment
-    if (increment != null) {
-      body = new Stmt.Block(
-          Arrays.asList(
-              body,
-              new Stmt.Expression(increment)));
-    }
+	try
+	{
+		loopDepth++;
+	//> for-body
+		Stmt body = statement();
 
-//< for-desugar-increment
-//> for-desugar-condition
-    if (condition == null) condition = new Expr.Literal(true);
-    body = new Stmt.While(condition, body);
+	//> for-desugar-increment
+		if (increment != null) {
+		  body = new Stmt.Block(
+			  Arrays.asList(
+				  body,
+				  new Stmt.Expression(increment)));
+		}
 
-//< for-desugar-condition
-//> for-desugar-initializer
-    if (initializer != null) {
-      body = new Stmt.Block(Arrays.asList(initializer, body));
-    }
+	//< for-desugar-increment
+	//> for-desugar-condition
+		if (condition == null) condition = new Expr.Literal(true);
+		body = new Stmt.While(condition, body);
 
-//< for-desugar-initializer
-    return body;
+	//< for-desugar-condition
+	//> for-desugar-initializer
+		if (initializer != null) {
+		  body = new Stmt.Block(Arrays.asList(initializer, body));
+		}
+
+	//< for-desugar-initializer
+		return body;
+	}
+	finally
+	{
+		loopDepth--;
+	}
 //< for-body
   }
 //< Control Flow for-statement
@@ -265,13 +292,25 @@ class Parser {
   }
 //< Statements and State parse-var-declaration
 //> Control Flow while-statement
+
+// Homework Chapter 9
   private Stmt whileStatement() {
     consume(LEFT_PAREN, "Expect '(' after 'while'.");
     Expr condition = expression();
     consume(RIGHT_PAREN, "Expect ')' after condition.");
-    Stmt body = statement();
+    
+	try 
+	{
+		loopDepth++;
+		Stmt body = statement();
 
-    return new Stmt.While(condition, body);
+		return new Stmt.While(condition, body);
+	}
+	finally
+	{
+		loopDepth--;
+	}
+
   }
 //< Control Flow while-statement
 //> Statements and State parse-expression-statement
